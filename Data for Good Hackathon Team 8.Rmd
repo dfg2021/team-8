@@ -1,0 +1,150 @@
+---
+title: "Data for Good Hackathon SDG Forecast"
+author: 'Team 8: Asmita Ghoshal, Cristhian Gutierrez'
+date: "3 June 2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+
+
+```{r,echo=FALSE,warning=FALSE}
+library(dplyr)
+Data<-read.csv("Goal4.csv",header = TRUE)
+df<-data.frame(Data)
+# head(Data)
+all_na <- function(x) any(!is.na(x))
+df<-df %>% select_if(all_na) ## Removing columns with all NA values
+# colnames(df)
+length(unique(df$GeoAreaName))
+```
+
+
+
+```{r}
+#Country of focus
+countries<-c('Afghanistan', 'Albania', 'Algeria', 'Angola', 'Antigua and Barbuda', 'Argentina', 'Armenia', 'Azerbaijan', 'Bangladesh', 'Belarus', 'Belize', 'Benin', 'Bhutan','Bolivia', 'Bosnia and Herzegovina', 'Botswana', 'Brazil', 'Bulgaria', 'Burkina Faso', 'Burundi', 'Cabo Verde', 'Cambodia', 'Cameroon', 'Central African Republic', 'Chad', 'Chile', 'China', 'Colombia', 'Comoros', 'Congo','Congo, Democratic Republic', 'Costa Rica', 'Croatia', "Côte d'Ivoire", 'Djibouti', 'Dominica', 'Dominican Republic', 'Ecuador', 'Egypt', 'El Salvador', 'Equatorial Guinea', 'Eritrea', 'Eswatini', 'Ethiopia', 'Fiji', 'Gabon', 'Gambia', 'Georgia', 'Ghana', 'Grenada', 'Guatemala', 'Guinea', 'Guinea-Bissau', 'Guyana', 'Haiti', 'Honduras', 'India', 'Indonesia', 'Iran (Islamic Republic of)', 'Iraq', 'Jamaica', 'Jordan', 'Kazakhstan', 'Kenya', 'Kiribati', 'Kosovo', 'Kyrgyzstan', "Lao People's Democratic Republic", 'Lebanon', 'Lesotho', 'Liberia', 'Libya', 'Madagascar', 'Malawi', 'Malaysia', 'Maldives', 'Mali', 'Marshall Islands', 'Mauritania', 'Mauritius', 'Mexico', 'Micronesia (Federated States of)','Moldova', 'Mongolia', 'Montenegro', 'Morocco', 'Mozambique', 'Myanmar', 'Namibia', 'Nauru', 'Nepal', 'Nicaragua', 'Niger', 'Nigeria', 'North Macedonia', 'Pakistan', 'Palau', 'Panama', 'Papua New Guinea', 'Paraguay', 'Peru', 'Philippines', 'Poland', 'Romania', 'Russian Federation', 'Rwanda', 'Saint Kitts and Nevis', 'Saint Lucia', 'Saint Vincent and the Grenadines', 'Samoa', 'Sao Tome and Principe', 'Senegal', 'Serbia', 'Seychelles', 'Sierra Leone', 'Solomon Islands', 'Somalia', 'South Africa', 'South Sudan', 'Sri Lanka', 'Sudan', 'Suriname', 'Syrian Arab Republic', 'Tajikistan', 'Thailand', 'Timor-Leste', 'Togo', 'Tonga', 'Trinidad and Tobago', 'Tunisia', 'Turkey', 'Turkmenistan', 'Tuvalu', 'Uganda', 'Ukraine', 'United Republic of Tanzania', 'Uruguay', 'Uzbekistan', 'Vanuatu','Venezuela', 'Vietnam', 'Yemen', 'Zambia', 'Zimbabwe')
+
+length(countries)
+```
+
+
+
+```{r}
+df_countries<-filter(df,GeoAreaName %in% countries)
+length(unique(df_countries$GeoAreaName))
+```
+
+
+```{r}
+a<-countries %in% unique(df$GeoAreaName)
+sum(a==FALSE)
+countries[which(a==FALSE)] ## Countries that are not there in the data set
+```
+
+```{r}
+str(df_countries)
+```
+
+
+```{r}
+# write.csv(df_countries,"cleaned_data.csv")
+
+df_00_18<-filter(df_countries,TimePeriod<=2018)
+  
+df_19<-filter(df_countries,TimePeriod==2019)
+
+length(unique(df_countries$TimePeriod)) ## Number of years
+length(unique(df_00_18$TimePeriod)) ## Verifying Number of years 
+length(unique(df_19$TimePeriod)) ## Verifying again
+```
+
+Numder of NA's acoss dimensions.
+
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(tidyverse)
+map(df_00_18, ~sum(is.na(.)))
+```
+
+As we are building a forecasting model using data for 2000-2018 and the variable "Baseperiod"" only takes the value 2018 for some countries we deem this variable not significant in terms of  modelling SDG.
+
+```{r}
+# Dimension<-c('Age','Education level','Location','Nature','Quantile','Reporting Type','Sex','Type of skill','Units')
+unique(Data$Reporting.Type) ## No need to consider reporting type
+variables<-c('Age','Education.level','Location','Nature','Quantile','Sex','Type.of.skill','Units','Value','GeoAreaName','Target','TimePeriod')
+
+df_00_18<-df_00_18[,colnames(df_00_18)%in%variables]
+df_19<-df_19[,colnames(df_19)%in%variables]
+```
+
+
+Based on the information available in 'https://en.unesco.org/gem-report/sdg-goal-4' we deem that it makes sense to buid 9 different models corresponding to each of the 9 targets. The indicators are used to scrutinize subdivisions of the 9 major aspects aka targets in this context.Due to the time constraint the best choice is building different models across different targets.
+
+
+
+# Exploratory Data Analysis by summarising the key information across different dimensions
+
+We will be conducting an exploratory data analysis for each target.
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+Tag<-unique(df$Target)
+for (t in Tag){
+  print(paste0("EDA corresponding to the sectors highlighted under the target ", toString(t)))
+  mydata<-data.frame(filter(df_00_18,Target==t))
+  boxplot(mydata$Value, main="Boxplot for Value")
+  suma_dat<-mydata%>%
+  count(Age,Education.level,Location,Sex,Type.of.skill,Target)
+  print(suma_dat) 
+  }
+
+```
+
+
+
+
+
+##############################################################################################
+
+Replacing missing values with median for numerical variables and with the majority class for categorical variables across different years (Time period).As we are interested in the quality education and lifelong learning for all there is no point in creating a segregstion across different countries.
+
+Identifying missing values and replacing them with the median for the variable named "Value" aggregated by time period and target.Count of missing values across dimensions.
+
+```{r}
+df_00_18[df_00_18==""]<-NA
+map(df_00_18, ~sum(is.na(.)))
+dat_ts<-Data_ts<-df_00_18 %>%
+  group_by(TimePeriod,Target) %>%
+  mutate(Value= ifelse(is.na(Value), median(Value, na.rm=TRUE), Value))
+```
+
+
+
+
+Here I will be using the variable "Values" for the purpose of forcasting. Essentially I will fit an ARMA model on the median corresponding to each group specified by target.Here, we are conducting a one step forecast for the year 2019 across different target groups using the median values from 200-2018. 
+
+```{r,echo=FALSE}
+Tag<-unique(df$Target)
+for (t in Tag){
+  print(paste0("Median Value Forecast for the year 2019 corresponding to the sectors highlighted under the target ", toString(t)))
+  mydata1<-data.frame(filter(df_00_18,Target==t))
+  # colnames(mydata)<-colnames(df_00_18)
+  mydata<-mydata1 %>%
+          group_by(TimePeriod) %>%
+          summarize(median_value=mean(Value,na.rm=TRUE))
+  mydata<-mydata[order(mydata$TimePeriod),]
+  Median_Value<-ts(mydata$median_value,start=2000,end=2018,frequency = 1)
+  ts.plot(Median_Value)
+  ARMA<-arima(Median_Value,order=c(0,1,1))
+  prediction<-predict(ARMA)
+  print(paste0("The predicted median value for the year 2019 is by ",toString(prediction$pred[1])))
+  }
+```
+
+
+
